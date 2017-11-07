@@ -2,7 +2,7 @@ package tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter
 
 public class Goal {
     private String behaviour;
-    private int period;
+    private String period;
 
     public String getBehaviour() {
         return behaviour;
@@ -12,11 +12,15 @@ public class Goal {
         this.behaviour = behaviour;
     }
 
-    public int getPeriod() {
+    public String getPeriod() {
         return period;
     }
 
-    public void setPeriod(int period) {
+    public void setPeriod(String period) {
         this.period = period;
+    }
+
+    public enum Period {
+        DAY, WEEK, MONTH
     }
 }

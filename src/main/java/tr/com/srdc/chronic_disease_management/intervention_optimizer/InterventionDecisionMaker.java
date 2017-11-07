@@ -35,7 +35,7 @@ public class InterventionDecisionMaker {
         InterventionDecisionMaker idm = InterventionDecisionMaker.getInstance();
         // episode
         for (int i = 0; i < 2; i++) {
-            logger.debug("E: " + (i+1));
+            logger.debug("E: " + (i + 1));
             // action in episode
             for (int j = 0; j < 4; j++) {
                 idm.isInterventionDeliverySuitable("bgm", "{\"patientId\" : \"pid1\", \"goalAchievement\" : " + j + "}", new LocalDateTime());
@@ -47,18 +47,16 @@ public class InterventionDecisionMaker {
                     e.printStackTrace();
                 }
             }
-            idm.submitLastPatientState("{\"patientId\" : \"pid1\"}");
+            idm.submitLastPatientState("{\n" +
+                    "\t\"behaviour\" : \"bgm\", \n" +
+                    "\t\"period\" : \"DAY\"\n" +
+                    "}", "{\"patientId\" : \"pid1\"}");
             logger.debug("Last state sent");
-//            try {
-//                Thread.sleep(1000);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
         }
     }
 
     public boolean isInterventionDeliverySuitable(String goalJson, String patientStateJson, LocalDateTime localStateTime) throws DecisionMakerException {
-        // parse patient state and
+        // parse patient state and goal
         PatientState patientState;
         Goal goal;
         try {
@@ -85,13 +83,23 @@ public class InterventionDecisionMaker {
         return decision;
     }
 
-    public void submitLastPatientState(String patientStateJson) throws DecisionMakerException {
-        // parse patient state
+    public void submitLastPatientState(String goalJson, String patientStateJson) throws DecisionMakerException {
+        // parse patient state and goal
         PatientState patientState;
+        Goal goal;
+        try {
+            patientState = SMModelParser.parsePatientState(patientStateJson);
+            goal = SMModelParser.parseGoal(goalJson);
+            patientState.setRelatedBehaviour(goal.getBehaviour());
+
+        } catch (IOException e) {
+            throw new DecisionMakerException(e.getMessage(), e);
+        }
+
         SMState smState;
         try {
             patientState = SMModelParser.parsePatientState(patientStateJson);
-            smState = SMModelParser.parseSMStateFromPatientState(patientStateJson);
+            smState = SMModelParser.createSMStateFromPatientState(goal, patientState);
             smState.setTerminal(true);
         } catch (IOException e) {
             throw new DecisionMakerException(e.getMessage(), e);
