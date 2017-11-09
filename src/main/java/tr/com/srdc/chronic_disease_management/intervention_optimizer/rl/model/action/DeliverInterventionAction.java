@@ -1,21 +1,18 @@
-package tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model;
+package tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.action;
 
 import burlap.oomdp.core.Domain;
 import burlap.oomdp.core.states.State;
 import burlap.oomdp.singleagent.GroundedAction;
-import burlap.oomdp.singleagent.common.SimpleAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.PersonalDecisionMaker;
+import tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.SMState;
 
-public class DeliverInterventionAction extends SimpleAction {
+public class DeliverInterventionAction extends SMAction {
     private static final Logger logger = LoggerFactory.getLogger(DeliverInterventionAction.class);
 
-    private PersonalDecisionMaker pdm;
-
     public DeliverInterventionAction(String name, Domain domain, PersonalDecisionMaker pdm) {
-        super(name, domain);
-        this.pdm = pdm;
+        super(name, domain, pdm);
     }
 
     @Override
@@ -25,7 +22,7 @@ public class DeliverInterventionAction extends SimpleAction {
         pdm.waitForPatientState();
         logger.debug("Deliver int action got patient state");
 
-        SMState nextState = pdm.getLastState();
+        SMState nextState = pdm.getEnvironment().getLastState();
         nextState.printState();
         return nextState;
     }

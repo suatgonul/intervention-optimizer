@@ -15,6 +15,12 @@ import burlap.oomdp.statehashing.HashableState;
 import burlap.oomdp.statehashing.HashableStateFactory;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.PersonalDecisionMaker;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalField;
+
 public class SMQLearning extends QLearning {
     private PersonalDecisionMaker pdm;
 
@@ -89,7 +95,19 @@ public class SMQLearning extends QLearning {
         }
         episodeHistory.offer(ea);
 
+        // reward past episodes
+
+
+
         return ea;
 
+    }
+
+    private void rewardPastEpisodes(LocalDateTime localTime) {
+        // if the last daily episode is finalized in the subsequent day
+        localTime = localTime.minus(1, ChronoUnit.DAYS);
+        int numberOfDaysInMonth = localTime.getMonth().get(ChronoField.DAY_OF_MONTH);
+
+        pdm.getEnvironment().getRf().rewardForAchievedGoal(episodeHistory);
     }
 }

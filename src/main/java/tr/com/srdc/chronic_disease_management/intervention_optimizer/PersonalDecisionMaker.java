@@ -8,57 +8,25 @@ import burlap.oomdp.core.TerminalFunction;
 import burlap.oomdp.singleagent.GroundedAction;
 import burlap.oomdp.singleagent.RewardFunction;
 import burlap.oomdp.singleagent.SADomain;
-import burlap.oomdp.singleagent.environment.SimulatedEnvironment;
 import burlap.oomdp.statehashing.SimpleHashableStateFactory;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.*;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model.Goal;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import static tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.InterventionDecisionMakerDomainGenerator.ACTION_DELIVER_INTERVENTION;
 
 public class PersonalDecisionMaker {
     private static final Logger logger = LoggerFactory.getLogger(PersonalDecisionMaker.class);
 
-    private static int MAX_EPISODE_NUMBER = 100;
-
-    private SimulatedEnvironment environment;
-    private SMState lastState;
-    private GroundedAction lastAction;
-    private LocalDateTime lastInterventionTime;
-    private Map<String, LocalDateTime> lastInterventionTimesByBehaviour = new HashMap<>();
-    private int totalNumberOfDeliveredInterventionsInEpisode = 0;
+    private SMEnvironment environment;
 
     private BooleanLock patientStateLock = new BooleanLock();
     private BooleanLock learnerInitializedLock = new BooleanLock();
     private BooleanLock selectedActionLock = new BooleanLock();
 
-    public BooleanLock getLearnerInitializedLock() {
-        return learnerInitializedLock;
-    }
-
-    public SimulatedEnvironment getEnvironment() {
+    public SMEnvironment getEnvironment() {
         return environment;
-    }
-
-    public SMState getLastState() {
-        return lastState;
-    }
-
-    public LocalDateTime getLastInterventionTime() {
-        return lastInterventionTime;
-    }
-
-    public int getTotalNumberOfDeliveredInterventionsInEpisode() {
-        return totalNumberOfDeliveredInterventionsInEpisode;
-    }
-
-    public Map<String, LocalDateTime> getLastInterventionTimesByBehaviour() {
-        return lastInterventionTimesByBehaviour;
     }
 
     public boolean isInterventionDeliverySuitable(Goal goal, SMState smState) {
@@ -66,10 +34,9 @@ public class PersonalDecisionMaker {
         logger.debug("Will wait for selected action");
         waitForSelectedAction();
         logger.debug("Selected action available");
+
+        GroundedAction lastAction = environment.getLastAction();
         if(lastAction.action.getName().equals(ACTION_DELIVER_INTERVENTION)) {
-            lastInterventionTime = new LocalDateTime();
-            totalNumberOfDeliveredInterventionsInEpisode++;
-            lastInterventionTimesByBehaviour.put(goal.getBehaviour(), lastInterventionTime);
             return true;
         } else {
             return false;
@@ -82,7 +49,7 @@ public class PersonalDecisionMaker {
             SADomain domain = dg.generateDomain();
             TerminalFunction tf = new DayTerminalFunction();
             RewardFunction rf = new GoalPerformanceRewardFunction();
-            environment = new SimulatedEnvironment(domain, rf, tf);
+            environment = new SMEnvironment(domain, rf, tf);
             LearningAgent rlAlgorithm = getLearningAlgorithm(domain);
             synchronized (learnerInitializedLock) {
                 learnerInitializedLock.notify();
@@ -92,7 +59,6 @@ public class PersonalDecisionMaker {
                 // wait for the new request coming from Communication Engine at the beginning of each episode
                 logger.debug("Wait at the beginning of episode");
                 waitForPatientState();
-                environment.setCurStateTo(lastState);
                 rlAlgorithm.runLearningEpisode(environment);
                 environment.resetEnvironment();
 
@@ -123,13 +89,12 @@ public class PersonalDecisionMaker {
     }
 
     public void checkLearningThreadStarted() throws DecisionMakerException {
-        PersonalDecisionMaker.BooleanLock learningStartLock = getLearnerInitializedLock();
-        synchronized (learningStartLock) {
+        synchronized (learnerInitializedLock) {
 
-            if (learningStartLock.getCondition() == false) {
+            if (learnerInitializedLock.getCondition() == false) {
                 try {
                     logger.debug("Will wait for the learning environment to be established");
-                    learningStartLock.wait();
+                    learnerInitializedLock.wait();
                     logger.debug("Learning environment established");
 
                 } catch (InterruptedException e) {
@@ -144,7 +109,7 @@ public class PersonalDecisionMaker {
 
     public void notifyWithSetPatientState(SMState smState) {
         synchronized (patientStateLock) {
-            lastState = smState;
+            environment.setCurStateTo(smState);
             patientStateLock.setCondition(true);
             patientStateLock.notify();
             logger.debug("Patient state set");
@@ -175,7 +140,7 @@ public class PersonalDecisionMaker {
             selectedActionLock.setCondition(true);
             selectedActionLock.notify();
             logger.debug("Action selected");
-            lastAction = action;
+            environment.updateEnvironmentForDeliveredAction(action);
         }
     }
 
@@ -185,7 +150,8 @@ public class PersonalDecisionMaker {
                 try {
                     logger.debug("Condition false... Will wait for selected action");
                     selectedActionLock.wait();
-                    //logger.debug("Patient state received. Learning continues");
+                    logger.debug("Patient state received. Learning continues");
+
 
                 } catch (InterruptedException e) {
                     String msg = "Learning thread interrupted while waiting selected action";

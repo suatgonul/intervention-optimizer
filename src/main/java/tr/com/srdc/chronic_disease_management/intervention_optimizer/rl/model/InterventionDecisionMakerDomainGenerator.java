@@ -5,6 +5,8 @@ import burlap.oomdp.core.Attribute;
 import burlap.oomdp.core.ObjectClass;
 import burlap.oomdp.singleagent.SADomain;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.PersonalDecisionMaker;
+import tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.action.DeliverInterventionAction;
+import tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.action.NoInterventionAction;
 
 public class InterventionDecisionMakerDomainGenerator implements DomainGenerator {
     // Total of number of interventions in a day up to the moment of execution of the algoritm
