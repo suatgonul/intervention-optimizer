@@ -4,6 +4,14 @@ public class Goal {
     private String behaviour;
     private String period;
 
+    public Goal() {
+    }
+
+    public Goal(String behaviour, String period) {
+        this.behaviour = behaviour;
+        this.period = period;
+    }
+
     public String getBehaviour() {
         return behaviour;
     }
@@ -18,9 +26,5 @@ public class Goal {
 
     public void setPeriod(String period) {
         this.period = period;
-    }
-
-    public enum Period {
-        DAY, WEEK, MONTH
     }
 }

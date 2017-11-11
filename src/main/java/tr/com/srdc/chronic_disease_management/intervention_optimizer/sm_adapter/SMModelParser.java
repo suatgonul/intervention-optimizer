@@ -3,7 +3,6 @@ package tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter
 import burlap.oomdp.core.objects.MutableObjectInstance;
 import burlap.oomdp.core.objects.ObjectInstance;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.InterventionDecisionMaker;
@@ -13,6 +12,7 @@ import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model.PatientState;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 import static tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.InterventionDecisionMakerDomainGenerator.*;
 import static tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.SMModelCalculator.*;
@@ -21,6 +21,10 @@ public class SMModelParser {
     private static final Logger logger = LoggerFactory.getLogger(SMModelParser.class);
 
     private static ObjectMapper parser = new ObjectMapper();
+    static {
+        parser = new ObjectMapper();
+        parser.findAndRegisterModules();
+    }
 
     public static void main(String[] args) throws Exception {
         String jsonInString = "{\n" +
@@ -70,6 +74,7 @@ public class SMModelParser {
     public static SMState createSMStateFromPatientState(Goal goal, PatientState patientState) {
         SMState smState = new SMState();
         smState.setAssociatedGoal(goal);
+        smState.setStateTime(patientState.getStateRetrievalTime());
 
         PersonalDecisionMaker pdm = InterventionDecisionMaker.getInstance().getPdm(patientState.getPatientId());
         String relatedBehaviour = patientState.getRelatedBehaviour();
@@ -79,7 +84,7 @@ public class SMModelParser {
 
         ObjectInstance objectInstance = new MutableObjectInstance(pdm.getEnvironment().getDomain().getObjectClass(CLASS_STATE_DATA), CLASS_STATE_DATA);
         objectInstance.setValue(ATT_GOAL_ACHIEVEMENT, patientState.getGoalAchievement());
-        objectInstance.setValue(ATT_HABITUATION, calculateHabituation(goal, patientState) );
+        objectInstance.setValue(ATT_HABITUATION, calculateHabituation(patientState) );
         objectInstance.setValue(ATT_TOTAL_NUMBER_OF_INTERVENTIONS_SENT, pdm.getEnvironment().getTotalNumberOfDeliveredInterventionsInEpisode());
         objectInstance.setValue(ATT_TIME_SINCE_LAST_INTERVENTION, getTimeSince(lastSimilarInterventionTime));
         objectInstance.setValue(ATT_TIME_SINCE_LAST_INTERVENTION, getTimeSince(lastInterventionTime));

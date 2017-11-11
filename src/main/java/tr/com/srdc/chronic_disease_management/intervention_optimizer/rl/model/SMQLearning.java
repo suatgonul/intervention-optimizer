@@ -13,15 +13,17 @@ import burlap.oomdp.singleagent.environment.Environment;
 import burlap.oomdp.singleagent.environment.EnvironmentOutcome;
 import burlap.oomdp.statehashing.HashableState;
 import burlap.oomdp.statehashing.HashableStateFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.PersonalDecisionMaker;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.Temporal;
-import java.time.temporal.TemporalField;
 
 public class SMQLearning extends QLearning {
+    private static final Logger logger = LoggerFactory.getLogger(SMQLearning.class);
+
     private PersonalDecisionMaker pdm;
 
     public SMQLearning(Domain domain, double gamma, HashableStateFactory hashingFactory, double qInit, double learningRate, Policy learningPolicy, int maxEpisodeSize, PersonalDecisionMaker pdm) {
@@ -41,36 +43,33 @@ public class SMQLearning extends QLearning {
         eStepCounter = 0;
 
         maxQChangeInLastEpisode = 0.;
-        while(!env.isInTerminalState() && (eStepCounter < maxSteps || maxSteps == -1)){
+        while (!env.isInTerminalState() && (eStepCounter < maxSteps || maxSteps == -1)) {
 
-            GroundedAction action = (GroundedAction)learningPolicy.getAction(curState.s);
+            GroundedAction action = (GroundedAction) learningPolicy.getAction(curState.s);
             QValue curQ = this.getQ(curState, action);
 
             pdm.notifyWithSelectedAction(action);
 
             EnvironmentOutcome eo = action.executeIn(env);
 
-
             HashableState nextState = this.stateHash(eo.op);
             double maxQ = 0.;
 
-            if(!eo.terminated){
+            if (!eo.terminated) {
                 maxQ = this.getMaxQ(nextState);
             }
 
             //manage option specifics
             double r = eo.r;
-            double discount = eo instanceof EnvironmentOptionOutcome ? ((EnvironmentOptionOutcome)eo).discount : this.gamma;
-            int stepInc = eo instanceof EnvironmentOptionOutcome ? ((EnvironmentOptionOutcome)eo).numSteps : 1;
+            double discount = eo instanceof EnvironmentOptionOutcome ? ((EnvironmentOptionOutcome) eo).discount : this.gamma;
+            int stepInc = eo instanceof EnvironmentOptionOutcome ? ((EnvironmentOptionOutcome) eo).numSteps : 1;
             eStepCounter += stepInc;
 
-            if(action.action.isPrimitive() || !this.shouldAnnotateOptions){
+            if (action.action.isPrimitive() || !this.shouldAnnotateOptions) {
                 ea.recordTransitionTo(action, nextState.s, r);
+            } else {
+                ea.appendAndMergeEpisodeAnalysis(((Option) action.action).getLastExecutionResults());
             }
-            else{
-                ea.appendAndMergeEpisodeAnalysis(((Option)action.action).getLastExecutionResults());
-            }
-
 
 
             double oldQ = curQ.q;
@@ -79,7 +78,7 @@ public class SMQLearning extends QLearning {
             curQ.q = curQ.q + this.learningRate.pollLearningRate(this.totalNumberOfSteps, curState.s, action) * (r + (discount * maxQ) - curQ.q);
 
             double deltaQ = Math.abs(oldQ - curQ.q);
-            if(deltaQ > maxQChangeInLastEpisode){
+            if (deltaQ > maxQChangeInLastEpisode) {
                 maxQChangeInLastEpisode = deltaQ;
             }
 
@@ -90,24 +89,43 @@ public class SMQLearning extends QLearning {
 
         }
 
-        if(episodeHistory.size() >= numEpisodesToStore){
+        if (episodeHistory.size() >= numEpisodesToStore) {
             episodeHistory.poll();
         }
         episodeHistory.offer(ea);
-
-        // reward past episodes
-
-
-
+        rewardPastEpisodes();
         return ea;
 
     }
 
-    private void rewardPastEpisodes(LocalDateTime localTime) {
-        // if the last daily episode is finalized in the subsequent day
-        localTime = localTime.minus(1, ChronoUnit.DAYS);
-        int numberOfDaysInMonth = localTime.getMonth().get(ChronoField.DAY_OF_MONTH);
+    public void rewardPastEpisodes() {
+        SMState lastState = pdm.getEnvironment().getCurrentObservation();
+        String goalPeriod = lastState.getAssociatedGoal().getPeriod();
 
-        pdm.getEnvironment().getRf().rewardForAchievedGoal(episodeHistory);
+        int episodeNumberToReward = 0;
+        if (goalPeriod.equals("DAY")) {
+            episodeNumberToReward = 1;
+
+        } else if (goalPeriod.equals("WEEK")) {
+            episodeNumberToReward = 7;
+
+        } else if (goalPeriod.equals("MONTH")) {
+            LocalDateTime stateTime = lastState.getStateTime();
+            LocalDateTime localTime = stateTime.minus(1, ChronoUnit.DAYS);
+            episodeNumberToReward = localTime.get(ChronoField.DAY_OF_MONTH);
+        }
+
+        double r = pdm.getEnvironment().getRf().getRewardForPastEpisode(goalPeriod);
+        for (int i = 0; i < episodeNumberToReward && i < episodeHistory.size(); i++) {
+            EpisodeAnalysis ea = episodeHistory.get(episodeHistory.size() - 1 - i);
+            for (int j = 0; j < ea.actionSequence.size(); j++) {
+                State s = ea.stateSequence.get(j);
+                GroundedAction a = ea.actionSequence.get(j);
+                QValue curQ = this.getQ(s, a);
+                curQ.q = curQ.q + this.learningRate.pollLearningRate(this.totalNumberOfSteps, s, a) * r;
+            }
+        }
+
+        logger.debug("Past episode rewarding done");
     }
 }

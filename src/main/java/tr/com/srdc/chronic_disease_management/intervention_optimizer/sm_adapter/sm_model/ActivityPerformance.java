@@ -4,6 +4,14 @@ public class ActivityPerformance {
     private String day;
     private double value;
 
+    public ActivityPerformance() {
+    }
+
+    public ActivityPerformance(String day, double value) {
+        this.day = day;
+        this.value = value;
+    }
+
     public String getDay() {
         return day;
     }

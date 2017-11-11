@@ -5,15 +5,18 @@ import burlap.oomdp.core.TerminalFunction;
 import burlap.oomdp.singleagent.GroundedAction;
 import burlap.oomdp.singleagent.RewardFunction;
 import burlap.oomdp.singleagent.environment.SimulatedEnvironment;
-import org.joda.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import static tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.InterventionDecisionMakerDomainGenerator.*;
+import static tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.InterventionDecisionMakerDomainGenerator.ACTION_DELIVER_INTERVENTION;
 
 public class SMEnvironment extends SimulatedEnvironment {
-    private SMState lastState;
+    private static final Logger logger = LoggerFactory.getLogger(SMEnvironment.class);
+
     private GroundedAction lastAction;
     private LocalDateTime lastInterventionTime;
     private Map<String, LocalDateTime> lastInterventionTimesByBehaviour = new HashMap<>();
@@ -23,44 +26,20 @@ public class SMEnvironment extends SimulatedEnvironment {
         super(domain, rf, tf);
     }
 
-    public SMState getLastState() {
-        return lastState;
-    }
-
-    public void setLastState(SMState lastState) {
-        this.lastState = lastState;
-    }
-
     public GroundedAction getLastAction() {
         return lastAction;
-    }
-
-    public void setLastAction(GroundedAction lastAction) {
-        this.lastAction = lastAction;
     }
 
     public LocalDateTime getLastInterventionTime() {
         return lastInterventionTime;
     }
 
-    public void setLastInterventionTime(LocalDateTime lastInterventionTime) {
-        this.lastInterventionTime = lastInterventionTime;
-    }
-
     public Map<String, LocalDateTime> getLastInterventionTimesByBehaviour() {
         return lastInterventionTimesByBehaviour;
     }
 
-    public void setLastInterventionTimesByBehaviour(Map<String, LocalDateTime> lastInterventionTimesByBehaviour) {
-        this.lastInterventionTimesByBehaviour = lastInterventionTimesByBehaviour;
-    }
-
     public int getTotalNumberOfDeliveredInterventionsInEpisode() {
         return totalNumberOfDeliveredInterventionsInEpisode;
-    }
-
-    public void setTotalNumberOfDeliveredInterventionsInEpisode(int totalNumberOfDeliveredInterventionsInEpisode) {
-        this.totalNumberOfDeliveredInterventionsInEpisode = totalNumberOfDeliveredInterventionsInEpisode;
     }
 
     @Override
@@ -68,12 +47,29 @@ public class SMEnvironment extends SimulatedEnvironment {
         return (GoalPerformanceRewardFunction) super.getRf();
     }
 
+    @Override
+    public SMState getCurrentObservation() {
+        SMState copy = new SMState((SMState) this.curState);
+        return copy;
+    }
+
+    @Override
+    public void resetEnvironment() {
+        super.resetEnvironment();
+        lastAction = null;
+        lastInterventionTime = null;
+        lastInterventionTimesByBehaviour = new HashMap<>();
+        totalNumberOfDeliveredInterventionsInEpisode = 0;
+    }
+
     public void updateEnvironmentForDeliveredAction(GroundedAction action) {
         lastAction = action;
+        logger.debug("Action set for environment: " + action);
         if (action.action.getName().equals(ACTION_DELIVER_INTERVENTION)) {
-            lastInterventionTime = new LocalDateTime();
+            lastInterventionTime = LocalDateTime.now();
             totalNumberOfDeliveredInterventionsInEpisode++;
-            lastInterventionTimesByBehaviour.put(lastState.getAssociatedGoal().getBehaviour(), lastInterventionTime);
+            SMState lastObservedState = getCurrentObservation();
+            lastInterventionTimesByBehaviour.put(lastObservedState.getAssociatedGoal().getBehaviour(), lastInterventionTime);
         }
     }
 }

@@ -21,7 +21,7 @@ public class PersonalDecisionMaker {
 
     private SMEnvironment environment;
 
-    private BooleanLock patientStateLock = new BooleanLock();
+    private PatientStateLock patientStateLock = new PatientStateLock();
     private BooleanLock learnerInitializedLock = new BooleanLock();
     private BooleanLock selectedActionLock = new BooleanLock();
 
@@ -34,8 +34,8 @@ public class PersonalDecisionMaker {
         logger.debug("Will wait for selected action");
         waitForSelectedAction();
         logger.debug("Selected action available");
-
         GroundedAction lastAction = environment.getLastAction();
+        logger.debug("Last action: " + lastAction);
         if(lastAction.action.getName().equals(ACTION_DELIVER_INTERVENTION)) {
             return true;
         } else {
@@ -50,7 +50,7 @@ public class PersonalDecisionMaker {
             TerminalFunction tf = new DayTerminalFunction();
             RewardFunction rf = new GoalPerformanceRewardFunction();
             environment = new SMEnvironment(domain, rf, tf);
-            LearningAgent rlAlgorithm = getLearningAlgorithm(domain);
+            LearningAgent learningAgent = getLearningAlgorithm(domain);
             synchronized (learnerInitializedLock) {
                 learnerInitializedLock.notify();
             }
@@ -59,9 +59,10 @@ public class PersonalDecisionMaker {
                 // wait for the new request coming from Communication Engine at the beginning of each episode
                 logger.debug("Wait at the beginning of episode");
                 waitForPatientState();
-                rlAlgorithm.runLearningEpisode(environment);
+                learningAgent.runLearningEpisode(environment);
                 environment.resetEnvironment();
 
+                selectedActionLock.setCondition(false);
 
                 logger.debug("Episode completed");
             }
@@ -110,7 +111,7 @@ public class PersonalDecisionMaker {
     public void notifyWithSetPatientState(SMState smState) {
         synchronized (patientStateLock) {
             environment.setCurStateTo(smState);
-            patientStateLock.setCondition(true);
+            patientStateLock.setPatientState(smState);
             patientStateLock.notify();
             logger.debug("Patient state set");
             smState.printState();
@@ -119,28 +120,32 @@ public class PersonalDecisionMaker {
 
     public void waitForPatientState() {
         synchronized (patientStateLock) {
-            if(!patientStateLock.getCondition()) {
+            if(patientStateLock.getPatientState() == null) {
                 try {
                     logger.debug("Condition false... Will wait for patient state");
                     patientStateLock.wait();
-                    //logger.debug("Patient state received. Learning continues");
+                    logger.debug("Patient state received");
+                    patientStateLock.getPatientState().printState();
 
                 } catch (InterruptedException e) {
                     String msg = "Learning thread interrupted while waiting patient state";
                     logger.error(msg, e);
                     throw new RuntimeException(msg, e);
                 }
+            } else {
+                logger.debug("Non-null patient state");
+                patientStateLock.getPatientState().printState();
             }
-            patientStateLock.setCondition(false);
+            patientStateLock.setPatientState(null);
         }
     }
 
     public void notifyWithSelectedAction(GroundedAction action) {
         synchronized (selectedActionLock) {
+            environment.updateEnvironmentForDeliveredAction(action);
             selectedActionLock.setCondition(true);
             selectedActionLock.notify();
-            logger.debug("Action selected");
-            environment.updateEnvironmentForDeliveredAction(action);
+            logger.debug("Action selected. Action: " + action.actionName());
         }
     }
 
@@ -158,8 +163,22 @@ public class PersonalDecisionMaker {
                     logger.error(msg, e);
                     throw new RuntimeException(msg, e);
                 }
+            } else {
+                logger.debug(environment.getLastAction() == null ? "null" : environment.getLastAction().actionName());
             }
             selectedActionLock.setCondition(false);
+        }
+    }
+
+    public class PatientStateLock {
+        private SMState patientState = null;
+
+        public SMState getPatientState() {
+            return patientState;
+        }
+
+        public void setPatientState(SMState patientState) {
+            this.patientState = patientState;
         }
     }
 

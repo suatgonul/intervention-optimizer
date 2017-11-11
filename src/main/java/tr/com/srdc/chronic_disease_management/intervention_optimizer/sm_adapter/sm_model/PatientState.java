@@ -1,14 +1,12 @@
 package tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model;
 
-import org.joda.time.LocalDateTime;
-
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class PatientState {
     private String patientId;
     private String relatedBehaviour;
     private List<ActivityPerformance> lastDays;
-    private List<ActivityPerformance> lastWeeks;
     private int goalAchievement;
     private LocalDateTime stateRetrievalTime;
     private boolean terminal;
@@ -35,14 +33,6 @@ public class PatientState {
 
     public void setLastDays(List<ActivityPerformance> lastDays) {
         this.lastDays = lastDays;
-    }
-
-    public List<ActivityPerformance> getLastWeeks() {
-        return lastWeeks;
-    }
-
-    public void setLastWeeks(List<ActivityPerformance> lastWeeks) {
-        this.lastWeeks = lastWeeks;
     }
 
     public boolean isTerminal() {

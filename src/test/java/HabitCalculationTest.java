@@ -12,10 +12,6 @@ import static org.junit.Assert.assertEquals;
 public class HabitCalculationTest {
     @Test
     public void testFullActivityForDailyActivity() {
-        Goal goal = new Goal();
-        goal.setBehaviour("bgm");
-        goal.setPeriod("DAY");
-
         PatientState patientState = new PatientState();
         List<ActivityPerformance> lastDays = new ArrayList<>();
         patientState.setLastDays(lastDays);
@@ -26,16 +22,12 @@ public class HabitCalculationTest {
             lastDays.add(ap);
         }
 
-        int habituation = SMModelCalculator.calculateHabituation(goal, patientState);
+        int habituation = SMModelCalculator.calculateHabituation(patientState);
         assertEquals(4, habituation);
     }
 
     @Test
     public void testFullActivityForDailyActivity_14Days() {
-        Goal goal = new Goal();
-        goal.setBehaviour("bgm");
-        goal.setPeriod("DAY");
-
         PatientState patientState = new PatientState();
         List<ActivityPerformance> lastDays = new ArrayList<>();
         patientState.setLastDays(lastDays);
@@ -46,16 +38,12 @@ public class HabitCalculationTest {
             lastDays.add(ap);
         }
 
-        int habituation = SMModelCalculator.calculateHabituation(goal, patientState);
+        int habituation = SMModelCalculator.calculateHabituation(patientState);
         assertEquals(4, habituation);
     }
 
     @Test
     public void testFullActivityForDailyActivity_13Days() {
-        Goal goal = new Goal();
-        goal.setBehaviour("bgm");
-        goal.setPeriod("DAY");
-
         PatientState patientState = new PatientState();
         List<ActivityPerformance> lastDays = new ArrayList<>();
         patientState.setLastDays(lastDays);
@@ -66,16 +54,12 @@ public class HabitCalculationTest {
             lastDays.add(ap);
         }
 
-        int habituation = SMModelCalculator.calculateHabituation(goal, patientState);
+        int habituation = SMModelCalculator.calculateHabituation(patientState);
         assertEquals(3, habituation);
     }
 
     @Test
     public void testFullActivityForDailyActivity_9Days() {
-        Goal goal = new Goal();
-        goal.setBehaviour("bgm");
-        goal.setPeriod("DAY");
-
         PatientState patientState = new PatientState();
         List<ActivityPerformance> lastDays = new ArrayList<>();
         patientState.setLastDays(lastDays);
@@ -86,7 +70,7 @@ public class HabitCalculationTest {
             lastDays.add(ap);
         }
 
-        int habituation = SMModelCalculator.calculateHabituation(goal, patientState);
+        int habituation = SMModelCalculator.calculateHabituation(patientState);
         assertEquals(3, habituation);
     }
 }
