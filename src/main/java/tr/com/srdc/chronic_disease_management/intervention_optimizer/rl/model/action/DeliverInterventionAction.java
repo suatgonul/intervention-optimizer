@@ -23,7 +23,6 @@ public class DeliverInterventionAction extends SMAction {
         logger.debug("Deliver int action got patient state");
 
         SMState nextState = pdm.getEnvironment().getCurrentObservation();
-        nextState.printState();
         return nextState;
     }
 }

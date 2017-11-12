@@ -20,6 +20,7 @@ import tr.com.srdc.chronic_disease_management.intervention_optimizer.PersonalDec
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 
 public class SMQLearning extends QLearning {
     private static final Logger logger = LoggerFactory.getLogger(SMQLearning.class);
@@ -103,20 +104,24 @@ public class SMQLearning extends QLearning {
         String goalPeriod = lastState.getAssociatedGoal().getPeriod();
 
         int episodeNumberToReward = 0;
-        if (goalPeriod.equals("DAY")) {
+        if (goalPeriod.contentEquals("DAY")) {
             episodeNumberToReward = 1;
 
-        } else if (goalPeriod.equals("WEEK")) {
+        } else if (goalPeriod.contentEquals("WEEK")) {
             episodeNumberToReward = 7;
 
-        } else if (goalPeriod.equals("MONTH")) {
+        } else if (goalPeriod.contentEquals("MONTH")) {
             LocalDateTime stateTime = lastState.getStateTime();
             LocalDateTime localTime = stateTime.minus(1, ChronoUnit.DAYS);
-            episodeNumberToReward = localTime.get(ChronoField.DAY_OF_MONTH);
+            LocalDateTime lastOfMonth = localTime.with(TemporalAdjusters.lastDayOfMonth());
+            episodeNumberToReward = lastOfMonth.get(ChronoField.DAY_OF_MONTH);
         }
 
+        logger.debug("Goal period: {}, episode number to reward: {}", goalPeriod, episodeNumberToReward);
+
         double r = pdm.getEnvironment().getRf().getRewardForPastEpisode(goalPeriod);
-        for (int i = 0; i < episodeNumberToReward && i < episodeHistory.size(); i++) {
+        int i = 0;
+        for (; i < episodeNumberToReward && i < episodeHistory.size(); i++) {
             EpisodeAnalysis ea = episodeHistory.get(episodeHistory.size() - 1 - i);
             for (int j = 0; j < ea.actionSequence.size(); j++) {
                 State s = ea.stateSequence.get(j);
@@ -125,7 +130,6 @@ public class SMQLearning extends QLearning {
                 curQ.q = curQ.q + this.learningRate.pollLearningRate(this.totalNumberOfSteps, s, a) * r;
             }
         }
-
-        logger.debug("Past episode rewarding done");
+        logger.debug("{} episode rewarded", (i-1));
     }
 }

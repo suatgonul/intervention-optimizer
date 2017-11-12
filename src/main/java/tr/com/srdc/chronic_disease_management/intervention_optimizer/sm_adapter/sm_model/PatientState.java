@@ -8,7 +8,7 @@ public class PatientState {
     private String relatedBehaviour;
     private List<ActivityPerformance> lastDays;
     private int goalAchievement;
-    private LocalDateTime stateRetrievalTime;
+    private LocalDateTime stateTime;
     private boolean terminal;
 
     public String getPatientId() {
@@ -51,11 +51,11 @@ public class PatientState {
         this.goalAchievement = goalAchievement;
     }
 
-    public LocalDateTime getStateRetrievalTime() {
-        return stateRetrievalTime;
+    public LocalDateTime getStateTime() {
+        return stateTime;
     }
 
-    public void setStateRetrievalTime(LocalDateTime stateRetrievalTime) {
-        this.stateRetrievalTime = stateRetrievalTime;
+    public void setStateTime(LocalDateTime stateTime) {
+        this.stateTime = stateTime;
     }
 }

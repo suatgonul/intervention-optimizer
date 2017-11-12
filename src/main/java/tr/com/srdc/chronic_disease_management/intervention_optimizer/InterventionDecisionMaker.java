@@ -37,7 +37,7 @@ public class InterventionDecisionMaker {
         try {
             patientState = SMModelParser.parsePatientState(patientStateJson);
             goal = SMModelParser.parseGoal(goalJson);
-            patientState.setStateRetrievalTime(localStateTime);
+            patientState.setStateTime(localStateTime);
             patientState.setRelatedBehaviour(goal.getBehaviour());
         } catch (IOException e) {
             throw new DecisionMakerException(e.getMessage(), e);
@@ -54,7 +54,7 @@ public class InterventionDecisionMaker {
         }
 
         SMState state = SMModelParser.createSMStateFromPatientState(goal, patientState);
-        boolean decision = pdm.isInterventionDeliverySuitable(goal, state);
+        boolean decision = pdm.isInterventionDeliverySuitable(state);
         return decision;
     }
 

@@ -29,14 +29,14 @@ public class PersonalDecisionMaker {
         return environment;
     }
 
-    public boolean isInterventionDeliverySuitable(Goal goal, SMState smState) {
+    public boolean isInterventionDeliverySuitable(SMState smState) {
         notifyWithSetPatientState(smState);
-        logger.debug("Will wait for selected action");
+
         waitForSelectedAction();
-        logger.debug("Selected action available");
         GroundedAction lastAction = environment.getLastAction();
-        logger.debug("Last action: " + lastAction);
-        if(lastAction.action.getName().equals(ACTION_DELIVER_INTERVENTION)) {
+        logger.debug("Selected action for pid: {} is: {}", smState.getPid(), lastAction);
+
+        if (lastAction.action.getName().equals(ACTION_DELIVER_INTERVENTION)) {
             return true;
         } else {
             return false;
@@ -61,9 +61,6 @@ public class PersonalDecisionMaker {
                 waitForPatientState();
                 learningAgent.runLearningEpisode(environment);
                 environment.resetEnvironment();
-
-                selectedActionLock.setCondition(false);
-
                 logger.debug("Episode completed");
             }
         });
@@ -83,6 +80,7 @@ public class PersonalDecisionMaker {
             public LearningAgent generateAgent() {
                 EpsilonGreedy epsilonGreedy = new EpsilonGreedy(0.1);
                 SMQLearning qLearning = new SMQLearning(domain, 0.1, hashingFactory, 0, 0.1, epsilonGreedy, Integer.MAX_VALUE, pdm);
+                qLearning.setNumEpisodesToStore(Integer.MAX_VALUE);
                 epsilonGreedy.setSolver(qLearning);
                 return qLearning;
             }
@@ -112,30 +110,30 @@ public class PersonalDecisionMaker {
         synchronized (patientStateLock) {
             environment.setCurStateTo(smState);
             patientStateLock.setPatientState(smState);
+            if(smState.isTerminal()) {
+                selectedActionLock.setCondition(false);
+            }
             patientStateLock.notify();
-            logger.debug("Patient state set");
+            logger.debug("Patient state set:");
             smState.printState();
         }
     }
 
     public void waitForPatientState() {
         synchronized (patientStateLock) {
-            if(patientStateLock.getPatientState() == null) {
+            if (patientStateLock.getPatientState() == null) {
                 try {
-                    logger.debug("Condition false... Will wait for patient state");
+                    logger.debug("Will wait for patient state");
                     patientStateLock.wait();
-                    logger.debug("Patient state received");
-                    patientStateLock.getPatientState().printState();
 
                 } catch (InterruptedException e) {
                     String msg = "Learning thread interrupted while waiting patient state";
                     logger.error(msg, e);
                     throw new RuntimeException(msg, e);
                 }
-            } else {
-                logger.debug("Non-null patient state");
-                patientStateLock.getPatientState().printState();
             }
+            logger.debug("Patient state received:");
+            patientStateLock.getPatientState().printState();
             patientStateLock.setPatientState(null);
         }
     }
@@ -145,27 +143,24 @@ public class PersonalDecisionMaker {
             environment.updateEnvironmentForDeliveredAction(action);
             selectedActionLock.setCondition(true);
             selectedActionLock.notify();
-            logger.debug("Action selected. Action: " + action.actionName());
+            logger.debug("Action selected: " + action.actionName());
         }
     }
 
     public void waitForSelectedAction() {
         synchronized (selectedActionLock) {
-            if(!selectedActionLock.getCondition()) {
+            if (!selectedActionLock.getCondition()) {
                 try {
-                    logger.debug("Condition false... Will wait for selected action");
+                    logger.debug("Will wait for selected action");
                     selectedActionLock.wait();
-                    logger.debug("Patient state received. Learning continues");
-
 
                 } catch (InterruptedException e) {
                     String msg = "Learning thread interrupted while waiting selected action";
                     logger.error(msg, e);
                     throw new RuntimeException(msg, e);
                 }
-            } else {
-                logger.debug(environment.getLastAction() == null ? "null" : environment.getLastAction().actionName());
             }
+            logger.debug("Action is available: {}", environment.getLastAction().actionName());
             selectedActionLock.setCondition(false);
         }
     }

@@ -64,9 +64,9 @@ public class SMEnvironment extends SimulatedEnvironment {
 
     public void updateEnvironmentForDeliveredAction(GroundedAction action) {
         lastAction = action;
-        logger.debug("Action set for environment: " + action);
         if (action.action.getName().equals(ACTION_DELIVER_INTERVENTION)) {
-            lastInterventionTime = LocalDateTime.now();
+            //lastInterventionTime = LocalDateTime.now();
+            lastInterventionTime = getCurrentObservation().getStateTime();
             totalNumberOfDeliveredInterventionsInEpisode++;
             SMState lastObservedState = getCurrentObservation();
             lastInterventionTimesByBehaviour.put(lastObservedState.getAssociatedGoal().getBehaviour(), lastInterventionTime);

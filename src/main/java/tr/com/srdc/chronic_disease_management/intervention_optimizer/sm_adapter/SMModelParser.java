@@ -73,20 +73,21 @@ public class SMModelParser {
 
     public static SMState createSMStateFromPatientState(Goal goal, PatientState patientState) {
         SMState smState = new SMState();
+        smState.setPid(patientState.getPatientId());
         smState.setAssociatedGoal(goal);
-        smState.setStateTime(patientState.getStateRetrievalTime());
+        smState.setStateTime(patientState.getStateTime());
 
         PersonalDecisionMaker pdm = InterventionDecisionMaker.getInstance().getPdm(patientState.getPatientId());
         String relatedBehaviour = patientState.getRelatedBehaviour();
         LocalDateTime lastInterventionTime = pdm.getEnvironment().getLastInterventionTime();
         LocalDateTime lastSimilarInterventionTime = pdm.getEnvironment().getLastInterventionTimesByBehaviour().get(relatedBehaviour);
-        LocalDateTime interventionTime = patientState.getStateRetrievalTime();
+        LocalDateTime interventionTime = patientState.getStateTime();
 
         ObjectInstance objectInstance = new MutableObjectInstance(pdm.getEnvironment().getDomain().getObjectClass(CLASS_STATE_DATA), CLASS_STATE_DATA);
         objectInstance.setValue(ATT_GOAL_ACHIEVEMENT, patientState.getGoalAchievement());
         objectInstance.setValue(ATT_HABITUATION, calculateHabituation(patientState) );
         objectInstance.setValue(ATT_TOTAL_NUMBER_OF_INTERVENTIONS_SENT, pdm.getEnvironment().getTotalNumberOfDeliveredInterventionsInEpisode());
-        objectInstance.setValue(ATT_TIME_SINCE_LAST_INTERVENTION, getTimeSince(lastSimilarInterventionTime));
+        objectInstance.setValue(ATT_TIME_SINCE_LAST_SAME_TYPE_INTERVENTION, getTimeSince(lastSimilarInterventionTime));
         objectInstance.setValue(ATT_TIME_SINCE_LAST_INTERVENTION, getTimeSince(lastInterventionTime));
         objectInstance.setValue(ATT_TYPE_OF_DAY, getDayType(interventionTime));
         objectInstance.setValue(ATT_TIME_OF_DAY, getTimeOfDay(interventionTime));

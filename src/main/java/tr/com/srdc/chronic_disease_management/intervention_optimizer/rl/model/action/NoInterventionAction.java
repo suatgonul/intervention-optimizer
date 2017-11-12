@@ -23,7 +23,6 @@ public class NoInterventionAction extends SMAction {
         logger.debug("No int action got patient state");
 
         SMState nextState = pdm.getEnvironment().getCurrentObservation();
-        //nextState.printState();
         return nextState;
     }
 }
