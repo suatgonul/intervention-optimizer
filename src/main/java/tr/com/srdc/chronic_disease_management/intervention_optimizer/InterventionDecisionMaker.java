@@ -84,6 +84,11 @@ public class InterventionDecisionMaker {
         pdm.notifyWithSetPatientState(smState);
     }
 
+    public void terminateLearning(String pid) {
+        PersonalDecisionMaker pdm = decisionMakers.get(pid);
+        pdm.terminateLearning();
+    }
+
     public PersonalDecisionMaker getPdm(String patientId) {
         return decisionMakers.get(patientId);
     }

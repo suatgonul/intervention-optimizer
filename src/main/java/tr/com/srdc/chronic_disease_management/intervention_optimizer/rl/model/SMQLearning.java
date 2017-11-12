@@ -130,6 +130,10 @@ public class SMQLearning extends QLearning {
                 curQ.q = curQ.q + this.learningRate.pollLearningRate(this.totalNumberOfSteps, s, a) * r;
             }
         }
-        logger.debug("{} episode rewarded", (i-1));
+        logger.debug("{} episode rewarded", i);
+    }
+
+    public void printQs() {
+        System.out.println("qs");
     }
 }

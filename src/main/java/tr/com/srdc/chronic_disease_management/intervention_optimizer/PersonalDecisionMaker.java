@@ -12,7 +12,6 @@ import burlap.oomdp.statehashing.SimpleHashableStateFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.*;
-import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model.Goal;
 
 import static tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.InterventionDecisionMakerDomainGenerator.ACTION_DELIVER_INTERVENTION;
 
@@ -20,13 +19,20 @@ public class PersonalDecisionMaker {
     private static final Logger logger = LoggerFactory.getLogger(PersonalDecisionMaker.class);
 
     private SMEnvironment environment;
+    private SMQLearning learningAlgorithm;
 
+    private Thread learningThread;
     private PatientStateLock patientStateLock = new PatientStateLock();
     private BooleanLock learnerInitializedLock = new BooleanLock();
     private BooleanLock selectedActionLock = new BooleanLock();
+    private boolean terminateSignal = false;
 
     public SMEnvironment getEnvironment() {
         return environment;
+    }
+
+    public SMQLearning getLearningAlgorithm() {
+        return learningAlgorithm;
     }
 
     public boolean isInterventionDeliverySuitable(SMState smState) {
@@ -44,25 +50,31 @@ public class PersonalDecisionMaker {
     }
 
     public void startLearning() {
-        Thread learningThread = new Thread(() -> {
+        learningThread = new Thread(() -> {
             InterventionDecisionMakerDomainGenerator dg = new InterventionDecisionMakerDomainGenerator(this);
             SADomain domain = dg.generateDomain();
             TerminalFunction tf = new DayTerminalFunction();
             RewardFunction rf = new GoalPerformanceRewardFunction();
             environment = new SMEnvironment(domain, rf, tf);
-            LearningAgent learningAgent = getLearningAlgorithm(domain);
+            learningAlgorithm = (SMQLearning) getLearningAlgorithm(domain);
+
             synchronized (learnerInitializedLock) {
                 learnerInitializedLock.notify();
             }
 
-            for (int i = 0; i < Integer.MAX_VALUE; i++) {
-                // wait for the new request coming from Communication Engine at the beginning of each episode
-                logger.debug("Wait at the beginning of episode");
-                waitForPatientState();
-                learningAgent.runLearningEpisode(environment);
-                environment.resetEnvironment();
-                logger.debug("Episode completed");
+            try {
+                while (true) {
+                    // wait for the new request coming from Communication Engine at the beginning of each episode
+                    logger.debug("Wait at the beginning of episode");
+                    waitForPatientState();
+                    learningAlgorithm.runLearningEpisode(environment);
+                    environment.resetEnvironment();
+                    logger.debug("Episode completed");
+                }
+            } catch (LearningTerminatedException e) {
+                // simply continue
             }
+            learningAlgorithm.printQs();
         });
         learningThread.start();
     }
@@ -127,9 +139,16 @@ public class PersonalDecisionMaker {
                     patientStateLock.wait();
 
                 } catch (InterruptedException e) {
-                    String msg = "Learning thread interrupted while waiting patient state";
-                    logger.error(msg, e);
-                    throw new RuntimeException(msg, e);
+                    if(!terminateSignal) {
+                        String msg = "Learning thread interrupted while waiting patient state";
+                        logger.error(msg, e);
+                        throw new RuntimeException(msg, e);
+
+                    } else {
+                        String msg = "Learning thread terminated";
+                        logger.info(msg);
+                        throw new LearningTerminatedException();
+                    }
                 }
             }
             logger.debug("Patient state received:");
@@ -163,6 +182,11 @@ public class PersonalDecisionMaker {
             logger.debug("Action is available: {}", environment.getLastAction().actionName());
             selectedActionLock.setCondition(false);
         }
+    }
+
+    public void terminateLearning() {
+        terminateSignal = true;
+        learningThread.interrupt();
     }
 
     public class PatientStateLock {

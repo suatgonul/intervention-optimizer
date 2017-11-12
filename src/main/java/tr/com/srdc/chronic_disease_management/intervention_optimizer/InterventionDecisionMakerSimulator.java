@@ -1,8 +1,11 @@
 package tr.com.srdc.chronic_disease_management.intervention_optimizer;
 
+import burlap.oomdp.statehashing.HashableState;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tr.com.srdc.chronic_disease_management.intervention_optimizer.rl.model.SMState;
+import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.SMModelParser;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model.ActivityPerformance;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model.Goal;
 import tr.com.srdc.chronic_disease_management.intervention_optimizer.sm_adapter.sm_model.PatientState;
@@ -90,5 +93,7 @@ public class InterventionDecisionMakerSimulator {
             // set time for the next day
             stateTime = stateTime.plus(8, ChronoUnit.HOURS);
         }
+
+        idm.terminateLearning("pid1");
     }
 }
